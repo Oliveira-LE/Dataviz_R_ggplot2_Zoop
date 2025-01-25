@@ -1,0 +1,435 @@
+---
+title: "R: Aplicando Data Visualization com ggplot2"
+author: "Luciano Oliveira"
+format: html
+editor: visual
+---
+
+# Dados do Projeto
+
+![](imagens/logo_branca_fundo_azul.png)
+
+## Empresa:
+
+Zoop
+
+## Ramo:
+
+Varejista
+
+## Base de Dados:
+
+Clientes; Vendas
+
+## Problema:
+
+Extrair os dados, gerar informações sobre o faturamento e traçar o perfil do cliente.
+
+Realizar uma análise exploratória dos dados (AED) e a criação de gráficos.
+
+## Pacotes:
+
+tidyverse, ggplot2, dplyr, readr, lubridate, scales
+
+```{r label: load-packages, include=FALSE}
+library(tidyverse) 
+library(ggplot2) 
+library(dplyr) 
+library(readr) 
+library(lubridate) 
+library(scales)
+```
+
+## Dados:
+
+```{r}
+url_vendas = "dados/zoop_vendas.csv" 
+url_clientes = "dados/zoop_clientes.csv"
+```
+
+```{r}
+vendas <- read_csv(url_vendas, show_col_types = FALSE) 
+head(vendas)
+```
+
+```{r}
+clientes <- read_csv(url_clientes, show_col_types = FALSE) 
+glimpse(clientes)
+```
+
+## **Questões:**
+
+### **Vendas**
+
+1.  Qual foi o faturamento por categoria em 2023?
+
+2.  Qual foi o desempenho das vendas ao longo dos meses em 2023?
+
+3.  Como está dividida a venda por trimestre por método de pagamento? O método PIX tem tido boa adesão?
+
+### **Perfil do cliente**
+
+4.  Como está distribuído o público por idade? Existe um grupo que sobressai relacionado a região e ao sexo biológico?
+
+5.  Dos clientes que participam do programa de cashback, qual a proporção por região do país? Quais são as 3 principais regiões? É preciso reforçar a campanha de adesão em quais delas?
+
+## **Tratamento dos dados:**
+
+### Dados de Vendas
+
+```{r}
+vendas
+```
+
+#### Transformando dados categóricos que se repetem em `factor`
+
+```{r}
+vendas <- vendas %>% mutate_if(is.character, as.factor) 
+vendas
+```
+
+#### Adicionando a coluna `total`
+
+```{r}
+vendas <- vendas %>% mutate(total = preco_unitario * quantidade + frete) 
+vendas
+```
+
+### Dados dos Clientes
+
+```{r}
+clientes
+```
+
+#### Transformando dados categóricos que se repetem em `factor`
+
+```{r}
+clientes <- clientes %>% mutate_if(is.character, as.factor) 
+head(clientes)
+```
+
+## Definindo a paleta de cores e tema
+
+```{r}
+nomes <- c("red_1", "red_2", "red_3", "grey_1", "grey_2",
+           "grey_3", "blue_1", "blue_2", "blue_3")
+cores <- c("#ee8399", "#e23155", "#881d33", "#f3f3f3", "#ebebeb", 
+           "#8d8d8d", "#a3adbd", "#5e708c", "#19325b")
+for (i in seq(nomes)) assign(nomes[i],cores[i])
+```
+
+```{r}
+tema <- theme_minimal() +
+  theme(panel.grid.major.x = element_blank(),
+        plot.title = element_text(size=14, face="bold", vjust = +2),
+        axis.text = element_text(size = 10),
+        axis.title.x = element_text(size = 12, face = "bold", vjust = -1),
+        axis.title.y = element_text(size = 12, face = "bold", vjust = +3),
+        legend.position = "bottom")
+```
+
+# Resolução das Questões
+
+## **1 -** Qual foi o faturamento por categoria em 2023?
+
+#### Passos para a criação de uma visualização
+
+#### Desenhando a camada base
+
+```{r}
+ggplot(vendas)
+```
+
+#### Escolhendo a estética do gráfico (dimensão visual)
+
+```{r}
+ggplot(vendas, aes(x = categoria, y = total))
+```
+
+#### Definindo o elemento geométrico (tipo do visual)
+
+```{r}
+ggplot(vendas, aes(x = categoria, y = total, fill = categoria)) + geom_col()
+```
+
+#### Ordenando colunas
+
+```{r}
+grafico_vendas_categoria <- ggplot(vendas, aes(x = categoria, y = total)) + geom_col()
+grafico_vendas_categoria
+```
+
+```{r}
+grafico_vendas_categoria <- ggplot(vendas, aes(x = reorder(categoria, total), 
+                                               y = total)) + geom_col()
+grafico_vendas_categoria
+```
+
+#### Ordenar pelo total e decrescente
+
+```{r}
+grafico_vendas_categoria <- ggplot(vendas, aes(x = reorder(categoria, -total, 
+                                   FUN = sum), y = total)) +   geom_col()
+grafico_vendas_categoria
+```
+
+#### Ajustando limites
+
+```{r}
+grafico_vendas_categoria <- grafico_vendas_categoria + 
+                            scale_y_continuous(expand = c(0,0), limits = c(0, 5.2e6))
+grafico_vendas_categoria
+```
+
+#### Modificando a orientação e ajustando o gráfico de vendas por categoria
+
+```{r}
+grafico_vendas_categoria <- 
+    ggplot(vendas, aes(x = reorder(categoria, -total, FUN = sum), y = total)) + 
+    geom_col(fill = red_2) +
+    scale_y_continuous(expand = c(0,0), limits = c(0, 5.2e6)) +
+    coord_flip() +
+    tema +
+    labs(title = "Vendas por categoria da Zoop (2023)")
+```
+
+```{r}
+grafico_vendas_categoria
+```
+
+#### Movendo os valores de venda
+
+```{r}
+grafico_vendas_categoria <- grafico_vendas_categoria+geom_label(aes(label = number(after_stat(y), prefix = "R$ ",                             scale_cut = cut_si(""))), stat = 'summary',fun = "sum", hjust=-0.05)
+grafico_vendas_categoria
+```
+
+#### Removendo títulos
+
+```{r}
+grafico_vendas_categoria <- grafico_vendas_categoria + theme(panel.grid = element_blank(), axis.title.x =                                     element_blank(), axis.title.y = element_blank(),axis.text.x = element_blank())
+grafico_vendas_categoria
+```
+
+## 2 - Qual foi o desempenho das vendas ao longo dos meses em 2023?
+
+#### Criando coluna de mês
+
+```{r}
+vendas <- vendas %>% mutate(mes = format(data, "%m")) 
+vendas
+```
+
+#### Agrupando vendas por mês
+
+```{r}
+vendas_por_mes <- vendas %>% group_by(mes) %>% summarise(vendas_por_mes = sum(total))
+vendas_por_mes
+```
+
+#### Gerando gráfico de linha
+
+```{r}
+ggplot(vendas_por_mes, aes(x = mes, y = vendas_por_mes, group=1)) +
+       geom_line(linewidth = 2, color = "steelblue", alpha = 0.5) +  ylim(0,2e6)
+```
+
+#### Combinando visuais
+
+```{r}
+ggplot(vendas_por_mes, aes(x = mes, y = vendas_por_mes, group=1)) +
+  geom_line(linewidth = 2, color = "steelblue", alpha = 0.2) +
+  geom_point(size = 4, color = "steelblue", shape = "diamond") + ylim(0,2e6)
+```
+
+#### Adicionando o tema e ajustando títulos
+
+```{r}
+grafico_vendas_mes <- ggplot(vendas_por_mes, aes(x = mes, y = vendas_por_mes, group=1)) + 
+                      geom_line(linewidth = 2, color = blue_2, alpha = 0.2) + 
+                      geom_point(size = 4, color = blue_2, shape = "diamond") + ylim(0,2e6)
+```
+
+```{r}
+grafico_vendas_mes <- grafico_vendas_mes + tema + labs(title = "Vendas por mês da Zoop (2023)", x = "Mês", 
+                      y = "Total de Vendas (R$)")
+grafico_vendas_mes
+```
+
+#### Ajustando os meses
+
+```{r}
+meses <- c("Jan", "Fev", "Mar", "Abr", "Mai", "Jun", 
+           "Jul", "Ago", "Set", "Out", "Nov", "Dez")
+```
+
+```{r}
+grafico_vendas_mes <- grafico_vendas_mes + scale_x_discrete(labels = meses) +
+                      scale_y_continuous(labels = label_number(prefix = "R$ ", scale_cut = cut_short_scale()))
+grafico_vendas_mes
+```
+
+## 3 - Como está dividida a venda por trimestre por método de pagamento? O método PIX tem tido boa adesão?
+
+#### Criando coluna de trimestre
+
+```{r}
+vendas <- vendas %>% mutate(trimestre = as.factor(quarter(data)))
+```
+
+#### Agrupando dados por trimestre
+
+```{r}
+vendas_por_tri <- vendas %>% group_by(trimestre, metodo_pagamento) %>% summarize(total_tri = sum(total))
+vendas_por_tri
+```
+
+#### Comparando gráfico de colunas agrupadas e empilhadas
+
+```{r}
+ggplot(vendas_por_tri, aes(trimestre, total_tri, fill = metodo_pagamento))+geom_col()
+```
+
+#### Ajuste das colunas
+
+```{r}
+ggplot(vendas_por_tri, aes(trimestre, total_tri, fill = metodo_pagamento)) + geom_col(position = "dodge")
+```
+
+#### Escolhendo paleta de cores
+
+```{r}
+ggplot(vendas_por_tri, aes(trimestre, total_tri, fill = metodo_pagamento)) + geom_col(position = "dodge") +
+       scale_fill_manual(values = c("#a3adbd", "#5e708c", "#19325b"))
+```
+
+#### Adicionando tema
+
+```{r}
+grafico_vendas_pag <-  ggplot(vendas_por_tri, aes(trimestre, total_tri, fill = metodo_pagamento)) +
+                       geom_col(position = "dodge") + scale_fill_manual(values = c("#a3adbd", "#5e708c",                                 "#19325b")) + tema
+grafico_vendas_pag
+```
+
+#### Ajustando o Título
+
+```{r}
+grafico_vendas_pag <- grafico_vendas_pag + labs(title = "Vendas trimestrais da Zoop por método de pagamento",
+                      x = "", y = "Total de vendas", fill = "Método de Pagamento")
+grafico_vendas_pag
+```
+
+#### Ajustando legendas
+
+```{r}
+grafico_vendas_pag <- grafico_vendas_pag + scale_x_discrete(labels = c("1º Tri", "2º Tri", "3º Tri", "4º Tri")) +
+                      scale_y_continuous(labels = label_number(prefix = "R$", scale_cut = cut_short_scale()))
+grafico_vendas_pag
+```
+
+#### Função `annotate()`
+
+```{r}
+grafico_vendas_pag <- grafico_vendas_pag + annotate("text", x = 1 , y = 1.5e6 ,
+                      label="As vendas por PIX superaram\nas de crédito apenas no 1º Tri", vjust = 1, size = 3) +
+                      annotate("curve", x = 1, y = 1.25e6, xend = 1.1, yend = 400e3,
+                      arrow = arrow(length = unit(2, "mm")))
+grafico_vendas_pag
+```
+
+## 4 - Como está distribuído o público por idade? Existe um grupo que sobressai relacionado a região e ao sexo biológico?
+
+#### Contando clientes únicos
+
+```{r}
+clientes %>% count(ID_cliente, sort = T)
+```
+
+#### Criando a tabela com clientes únicos
+
+```{r}
+clientes_unicos <- clientes %>% distinct(ID_cliente, .keep_all = T) 
+clientes_unicos
+```
+
+## Histograma da distribuição de idade dos clientes
+
+```{r}
+ggplot(clientes_unicos, aes(idade)) + geom_histogram(binwidth = 3)
+```
+
+#### Estilizando o gráfico com cor
+
+```{r}
+ggplot(clientes_unicos, aes(idade)) + geom_histogram(binwidth = 3, fill = "steelblue", color = "white")+ tema +          labs(title = "Distribuição de idade dos clientes", x = "idade", y ="Número de Clientes")
+```
+
+### **Como está distribuído o público por idade e região?**
+
+```{r}
+ggplot(clientes_unicos) + geom_boxplot(aes(y = regiao, x = idade))
+```
+
+#### Adicionando cores para melhor visualização
+
+```{r}
+ggplot(clientes_unicos) + geom_boxplot(aes(y = regiao, x = idade, fill = regiao)) + 
+       labs(title = "Distribuição de idade dos clientes entre as regiões", x = "idade", y ="Região")+ tema
+```
+
+#### `fill` para segregar os dados pelo sexo biológico.
+
+```{r}
+ggplot(clientes_unicos) + geom_boxplot(aes(y=regiao, x=idade, fill=sexo_biologico)) + 
+       labs(title = "Distribuição da idade pelo sexo entre as regiões", x = "idade", y ="Região")+ tema
+```
+
+## **5 - Dos clientes que participam do programa de cashback, qual a proporção por região do país?**
+
+#### Filtrar clientes do programa de cashback
+
+```{r}
+clientes_unicos %>% filter(cashback == "Sim") %>%   ggplot(aes(x=regiao)) +   geom_bar()
+```
+
+#### Representar os dados como percentual
+
+```{r}
+clientes_unicos %>% filter(cashback == "Sim") %>% ggplot(aes(x=regiao, fill = "regiao")) + 
+            geom_bar(aes(y = after_stat(100 * count/sum(count)))) +
+            labs(title = "Porcentagem do uso de cashback por região", x = "Região", y = "Porcentagem %") + tema 
+```
+
+## Análise Exploratória dos Dados 
+
+-   Grande parte dos clientes estão concentrados entre 30 e 50 anos, ou seja, um público majoritariamente da Geração Y ou Millenial.
+
+-   Distribuição de público mais jovem na Região Centro-Oeste, decorrente de um público do sexo masculino com maior distribuição na faixa entre 29 e 43 anos.
+
+-   Comparando as 5 regiões do Brasil, a distribuição de clientes do sexo biológico feminino só é ultrapassada de acordo à idade dos clientes na Região Nordeste.
+
+-   As 3 principais regiões em nº de clientes que participam do programa de cashback da Zoop são as regiões Sudeste, Nordeste e Sul.
+
+-   As regiões Centro-Oeste e Norte possuem menos de 10% da representatividade nacional no programa de cashback.
+
+## Histórico de vendas
+
+-   No quarto trimestre houve um aumento nas vendas, possivelmente explicado por grandes eventos e feriados, como o Dia das Crianças, a Black Friday, o Natal e o Ano Novo.
+
+-   Em agosto, as vendas ultrapassaram a marca de um milhão, o que merece investigação para entender o motivo desse aumento.
+
+-   No **faturamento por categoria**, os eletrodomésticos e equipamentos tecnológicos apresentam uma grande diferença em relação às outras categorias, possivelmente por serem produtos mais caros.
+
+-   Analisando a divisão das vendas por trimestre e método de pagamento, com foco no método PIX. Foi observado que o PIX superou o crédito apenas no primeiro trimestre, mas houve uma boa adesão ao PIX ao longo dos semestres, embora os pagamentos por crédito prevaleçam. Isso indica que nossos clientes talvez prefiram utilizar o cartão de crédito como primeira forma de pagamento.
+
+    ## Salvando os visuais com `ggsave()`
+
+    ```{r}
+
+    ggsave("imagens/grafico_vendas_mes.png", grafico_vendas_mes,
+           height = 5, width = 7, dpi=300)
+    ggsave("imagens/grafico_vendas_categoria.png", grafico_vendas_categoria,
+           height = 5, width = 7, dpi=300)
+    ggsave("imagens/grafico_vendas_pag.png", grafico_vendas_pag,
+           height = 5, width = 7, dpi=300)
+    ```
